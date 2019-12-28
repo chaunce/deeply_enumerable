@@ -31,6 +31,8 @@ module DeeplyEnumerable
 
     def deep_compact!(remove_emptied_elements = true, remove_empty_elements = remove_emptied_elements)
       each do |key, value|
+        next if unenumerable_object?(value)
+
         value = rebuild(value) unless value.respond_to?(:reverse_deep_merge)
         compact_method = %i[deep_compact! deep_compact compact! compact].detect{ |m| value.respond_to?(m) }
         next unless compact_method

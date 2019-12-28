@@ -1,5 +1,7 @@
 module DeeplyEnumerable
   module Enumerable
+    UNENUMERABLE = ['ActiveRecord::Relation']
+
     def self.included(klass)
       klass.extend(ClassMethods)
     end
@@ -27,6 +29,10 @@ module DeeplyEnumerable
         deep_rebuild(object).deep_compact(remove_emptied_elements, remove_empty_elements)
       end
 
+      def unenumerable
+        @unenumerable ||= UNENUMERABLE.map { |unenumerable| unenumerable.constantize rescue nil }.compact
+      end
+
       private
 
       def check_object_class(object)
@@ -36,6 +42,10 @@ module DeeplyEnumerable
 
     def rebuild(object)
       self.class.rebuild(object)
+    end
+
+    def unenumerable_object?(object)
+      self.class.unenumerable.any? { |unenumerable_klass| object.is_a?(unenumerable_klass) }
     end
   end
 end
