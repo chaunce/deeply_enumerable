@@ -1,4 +1,4 @@
-require_relative 'enumerable'
+require_relative "enumerable"
 
 module DeeplyEnumerable
   module HashExtension
@@ -37,7 +37,7 @@ module DeeplyEnumerable
         compact_method = %i[deep_compact! deep_compact compact! compact].detect{ |m| value.respond_to?(m) }
         next unless compact_method
 
-        original_empty = value.respond_to?(:empty?) ? value.empty? : value.respond_to?(:none?) ? value.none? : false
+        original_empty = value.respond_to?(:empty?) ? value.empty? : value.respond_to?(:none?) ? value.none? : false rescue false
         compact_value = value.send(*[compact_method].concat(value.method(compact_method).parameters.collect { |_,param| binding.local_variable_get(param) } ).compact) || value
         compact_empty = compact_value.respond_to?(:empty?) ? compact_value.empty? : compact_value.respond_to?(:none?) ? compact_value.none? : false
 

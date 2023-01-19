@@ -1,6 +1,6 @@
 module DeeplyEnumerable
   module Enumerable
-    UNENUMERABLE = ['ActiveRecord::Relation']
+    UNENUMERABLE = ["ActiveRecord::Relation", "Range"]
 
     def self.included(klass)
       klass.extend(ClassMethods)
