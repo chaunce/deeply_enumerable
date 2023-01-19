@@ -1,4 +1,4 @@
-require_relative 'enumerable'
+require_relative "enumerable"
 
 module DeeplyEnumerable
   module ArrayExtension

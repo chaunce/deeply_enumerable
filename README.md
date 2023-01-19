@@ -23,7 +23,7 @@ $ DeeplyEnumerable::Array.deep_compact(Array)
 
 These methos will retrun a `DeeplyEnumerable` type object matching the object passed, e.g: `Array` will return a `DeeplyEnumerable::Array`
 
-You may also extend base classes if you `require: 'base_extensions'` as described in *Installation*
+You may also extend base classes if you `require: "base_extensions"` as described in *Installation*
 ```ruby
 $ Hash#reverse_deep_merge(DeeplyEnumerable::Hash)
 $ Hash#reverse_deep_merge!(DeeplyEnumerable::Hash)
@@ -37,12 +37,12 @@ $ Array#deep_compact!
 ## Installation
 Add this line to your application's Gemfile:
 ```ruby
-gem 'deeply_enumerable'
+gem "deeply_enumerable"
 ```
 
 or this line to extend the base `Enumerable` classes:
 ```ruby
-gem 'deeply_enumerable', require: 'base_extensions'
+gem "deeply_enumerable", require: "base_extensions"
 ```
 
 And then execute:
