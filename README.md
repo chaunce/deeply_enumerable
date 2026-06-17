@@ -1,38 +1,97 @@
 # DeeplyEnumerable
-Extend Enumerable objects with recursive methods
+Extend `Enumerable` objects with recursive versions of common operations.
+
+`DeeplyEnumerable` walks a nested structure of `Hash` and `Array` objects and
+applies an operation at every level. Nested `Enumerable` objects are converted
+into `DeeplyEnumerable` types during the operation so the recursion can continue
+all the way down.
+
+## Compaction
+Ruby's `#compact` removes `nil`. Rails' `#compact_blank` removes anything that is
+`blank?` (`nil`, `false`, `""`, `" "`, `[]`, `{}`). `DeeplyEnumerable` provides
+recursive versions of both, plus two methods in between for finer control over
+*which* blanks are removed:
+
+| Method | Removes | Keeps |
+| --- | --- | --- |
+| `#deep_compact` | `nil` only | every other value, including `""`, `false`, `[]`, `{}` |
+| `#deep_compact_existing_blank` | `nil` and values that are **already** blank | collections that only become blank through compaction |
+| `#deep_compact_blanked` | `nil` and collections **emptied** by compaction | values that were already blank |
+| `#deep_compact_blank` | every blank value | nothing blank |
+
+The distinction between "existing" and "emptied" blanks matters once nesting is
+involved. Consider `{ a: { b: nil }, c: [] }`:
+
+* `a` holds `{ b: nil }`, which is *not* blank until its `nil` is removed — an
+  **emptied** blank.
+* `c` holds `[]`, which is blank in the input — an **existing** blank.
+
+```ruby
+source = { a: :b, c: nil, d: { e: nil, f: [] }, g: [1, nil], h: {}, i: "", j: [nil] }
+
+DeeplyEnumerable::Hash.deep_compact(source)
+# => { a: :b, d: { f: [] }, g: [1], h: {}, i: "", j: [] }   # only nils removed
+
+DeeplyEnumerable::Hash.deep_compact_existing_blank(source)
+# => { a: :b, d: {}, g: [1], j: [] }                        # pre-existing [], {} and "" removed; emptied kept
+
+DeeplyEnumerable::Hash.deep_compact_blanked(source)
+# => { a: :b, d: { f: [] }, g: [1], h: {}, i: "" }          # emptied collections removed; pre-existing blanks kept
+
+DeeplyEnumerable::Hash.deep_compact_blank(source)
+# => { a: :b, g: [1] }                                      # every blank removed
+```
+
+Each method has an in-place `!` variant (`#deep_compact!`, `#deep_compact_blank!`,
+etc.) that mutates the receiver and returns it, mirroring `#compact!`.
+
+## Merging
+```ruby
+DeeplyEnumerable::Hash#reverse_deep_merge(other_hash)   # recursively fill in only the missing keys
+DeeplyEnumerable::Hash#reverse_deep_merge!(other_hash)  # in place
+```
+`#deep_reverse_merge` / `#deep_reverse_merge!` are aliases.
 
 ## Usage
-Provides the following methods
+Call a class method to operate on a plain `Hash` or `Array`. The result is the
+matching `DeeplyEnumerable` type (`Hash` returns a `DeeplyEnumerable::Hash`,
+`Array` returns a `DeeplyEnumerable::Array`):
 ```ruby
-$ DeeplyEnumerable::Hash#reverse_deep_merge(DeeplyEnumerable::Hash)
-$ DeeplyEnumerable::Hash#reverse_deep_merge!(DeeplyEnumerable::Hash)
-$ DeeplyEnumerable::Hash#deep_compact
-$ DeeplyEnumerable::Hash#deep_compact!
+DeeplyEnumerable::Hash.deep_compact_blank({ a: 1, b: nil, c: { d: nil } })
+# => { a: 1 }
 
-$ DeeplyEnumerable::Array#deep_compact
-$ DeeplyEnumerable::Array#deep_compact!
+DeeplyEnumerable::Array.deep_compact([1, nil, [2, nil]])
+# => [1, [2]]
 ```
 
-Nested `Enumerable` objects will be converted into `DeeplyEnumerable` type objects during merge or compact operations to allow recursive method calls
-
-Class methods may be used for base ruby enumerable objects, such as `Hash` or `Array` objects
+Or extend the base `Hash` and `Array` classes (see *Installation*) and call the
+methods directly:
 ```ruby
-$ DeeplyEnumerable::Hash.deep_compact(Hash)
-$ DeeplyEnumerable::Array.deep_compact(Array)
+{ a: 1, b: nil }.deep_compact_blank   # => { a: 1 }
+[1, nil, [nil]].deep_compact          # => [1, []]
 ```
 
-These methos will retrun a `DeeplyEnumerable` type object matching the object passed, e.g: `Array` will return a `DeeplyEnumerable::Array`
+## Upgrading from v1
+v2 replaces the boolean arguments of `#deep_compact` with four named methods.
+Map your old calls as follows:
 
-You may also extend base classes if you `require: "base_extensions"` as described in *Installation*
-```ruby
-$ Hash#reverse_deep_merge(DeeplyEnumerable::Hash)
-$ Hash#reverse_deep_merge!(DeeplyEnumerable::Hash)
-$ Hash#deep_compact
-$ Hash#deep_compact!
+| v1 call | v2 equivalent |
+| --- | --- |
+| `deep_compact` / `deep_compact(true, true)` | `deep_compact_blank` |
+| `deep_compact(true, false)` | `deep_compact_blanked` |
+| `deep_compact(false, true)` | `deep_compact_existing_blank` |
+| `deep_compact(false, false)` | `deep_compact` |
 
-$ Array#deep_compact
-$ Array#deep_compact!
-```
+⚠️ **`#deep_compact` changed meaning.** In v1, bare `deep_compact` defaulted to
+the *most aggressive* behavior. In v2, `#deep_compact` removes **only nils**
+(matching Ruby's `#compact`). If you relied on the old default, switch to
+`#deep_compact_blank`.
+
+⚠️ **Blank now means `blank?`, not just empty.** v1 only ever removed `nil` and
+empty collections (`[]`, `{}`). The v2 `_blank` family also removes `false` and
+blank strings (`""`, `" "`), matching Rails' `#compact_blank`. Blankness is
+determined by an internal equivalent of ActiveSupport's `Object#blank?`, so the
+gem still has **no ActiveSupport dependency**.
 
 ## Installation
 Add this line to your application's Gemfile:
@@ -40,14 +99,14 @@ Add this line to your application's Gemfile:
 gem "deeply_enumerable"
 ```
 
-or this line to extend the base `Enumerable` classes:
+or this line to mix the methods into the base `Hash` and `Array` classes:
 ```ruby
 gem "deeply_enumerable", require: "base_extensions"
 ```
 
 And then execute:
 ```bash
-$ bundle
+$ bundle install
 ```
 
 Or install it yourself as:

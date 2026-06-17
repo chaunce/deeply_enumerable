@@ -8,31 +8,63 @@ module DeeplyEnumerable
       end
     end
 
-    def deep_compact!(remove_emptied_elements = true, remove_empty_elements = remove_emptied_elements)
-      each.with_index do |value, index|
-        next if unenumerable_object?(value)
-
-        value = rebuild(value) unless value.respond_to?(:reverse_deep_merge)
-        compact_method = %i[deep_compact! deep_compact compact! compact].detect{ |m| value.respond_to?(m) }
-        next unless compact_method
-
-        original_empty = value.respond_to?(:empty?) ? value.empty? : value.respond_to?(:none?) ? value.none? : false
-        compact_value = value.send(*[compact_method].concat(value.method(compact_method).parameters.collect { |_,param| binding.local_variable_get(param) } ).compact) || value
-        compact_empty = compact_value.respond_to?(:empty?) ? compact_value.empty? : compact_value.respond_to?(:none?) ? compact_value.none? : false
-
-        if (original_empty && remove_empty_elements) || (!original_empty && compact_empty && remove_emptied_elements)
-          self.delete_at(index)
-        else
-          self[index] = compact_value
-        end
-      end
-      compact!
-
-      self
+    # Recursively removes nil elements, leaving every other element (including
+    # already-blank ones such as "", [] and {}) untouched. This is the
+    # recursive counterpart of Ruby's Array#compact.
+    # https://docs.ruby-lang.org/en/master/Array.html#method-i-compact
+    def deep_compact
+      deep_compact_each(false, false)
     end
 
-    def deep_compact(remove_emptied_elements = true, remove_empty_elements = remove_emptied_elements)
-      dup.deep_compact!(remove_emptied_elements, remove_empty_elements)
+    # In-place variant of #deep_compact, mirroring Array#compact!.
+    def deep_compact!
+      replace(deep_compact)
+    end
+
+    # Recursively removes nils and elements that are already blank, but keeps
+    # collections that only become blank as a result of compaction.
+    def deep_compact_existing_blank
+      deep_compact_each(false, true)
+    end
+
+    # In-place variant of #deep_compact_existing_blank.
+    def deep_compact_existing_blank!
+      replace(deep_compact_existing_blank)
+    end
+
+    # Recursively removes nils and collections that became blank through
+    # compaction, but keeps elements that were already blank.
+    def deep_compact_blanked
+      deep_compact_each(true, false)
+    end
+
+    # In-place variant of #deep_compact_blanked.
+    def deep_compact_blanked!
+      replace(deep_compact_blanked)
+    end
+
+    # Recursively removes every blank element (nil, false, "", " ", [], {}).
+    # This is the recursive counterpart of Rails' Array#compact_blank.
+    # https://github.com/rails/rails/blob/main/activesupport/lib/active_support/core_ext/enumerable.rb
+    def deep_compact_blank
+      deep_compact_each(true, true)
+    end
+
+    # In-place variant of #deep_compact_blank, mirroring Array#compact_blank!.
+    def deep_compact_blank!
+      replace(deep_compact_blank)
+    end
+
+    private
+
+    # Shared engine for the deep_compact family: rebuilds an array of the same
+    # class, recursively compacting each element and discarding the ones that
+    # should be removed for the given combination of flags.
+    def deep_compact_each(remove_emptied_elements, remove_empty_elements)
+      each_with_object(self.class.new) do |element, result|
+        keep, element = deep_compact_element(element, remove_emptied_elements, remove_empty_elements)
+        result.push(element) if keep
+      end
     end
   end
 
