@@ -14,7 +14,12 @@ Gem::Specification.new do |s|
   s.description = "recursive support for enumerable operations"
   s.license     = "MIT"
 
-  s.files = Dir["{lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]
+  s.metadata = {
+    "source_code_uri" => "https://github.com/chaunce/deeply_enumerable",
+    "changelog_uri"   => "https://github.com/chaunce/deeply_enumerable/blob/master/CHANGELOG.md",
+  }
+
+  s.files = Dir["{lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md", "CHANGELOG.md"]
 
   s.add_development_dependency "rake"
   s.add_development_dependency "rspec"
