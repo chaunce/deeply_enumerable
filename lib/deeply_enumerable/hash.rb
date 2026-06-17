@@ -13,7 +13,7 @@ module DeeplyEnumerable
         this_value = self[current_key]
 
         self[current_key] = if this_value.is_a?(::Hash) && other_value.is_a?(::Hash)
-          this_value = ebuild(this_value) unless this_value.respond_to?(:reverse_deep_merge)
+          this_value = rebuild(this_value) unless this_value.respond_to?(:reverse_deep_merge)
           this_value.reverse_deep_merge(other_value)
         else
           key?(current_key) ? this_value : other_value
@@ -29,27 +29,63 @@ module DeeplyEnumerable
     end
     alias_method :deep_reverse_merge, :reverse_deep_merge
 
-    def deep_compact!(remove_emptied_elements = true, remove_empty_elements = remove_emptied_elements)
-      each do |key, value|
-        next if unenumerable_object?(value)
-
-        value = rebuild(value) unless value.respond_to?(:reverse_deep_merge)
-        compact_method = %i[deep_compact! deep_compact compact! compact].detect{ |m| value.respond_to?(m) }
-        next unless compact_method
-
-        original_empty = value.respond_to?(:empty?) ? value.empty? : value.respond_to?(:none?) ? value.none? : false rescue false
-        compact_value = value.send(*[compact_method].concat(value.method(compact_method).parameters.collect { |_,param| binding.local_variable_get(param) } ).compact) || value
-        compact_empty = compact_value.respond_to?(:empty?) ? compact_value.empty? : compact_value.respond_to?(:none?) ? compact_value.none? : false
-
-        self[key] = (original_empty && remove_empty_elements) || (!original_empty && compact_empty && remove_emptied_elements) ? nil : compact_value
-      end
-      compact!
-
-      self
+    # Recursively removes nil values, leaving every other value (including
+    # already-blank ones such as "", [] and {}) untouched. This is the
+    # recursive counterpart of Ruby's Hash#compact.
+    # https://docs.ruby-lang.org/en/master/Hash.html#method-i-compact
+    def deep_compact
+      deep_compact_each(false, false)
     end
 
-    def deep_compact(remove_emptied_elements = true, remove_empty_elements = remove_emptied_elements)
-      dup.deep_compact!(remove_emptied_elements, remove_empty_elements)
+    # In-place variant of #deep_compact, mirroring Hash#compact!.
+    def deep_compact!
+      replace(deep_compact)
+    end
+
+    # Recursively removes nils and values that are already blank, but keeps
+    # collections that only become blank as a result of compaction.
+    def deep_compact_existing_blank
+      deep_compact_each(false, true)
+    end
+
+    # In-place variant of #deep_compact_existing_blank.
+    def deep_compact_existing_blank!
+      replace(deep_compact_existing_blank)
+    end
+
+    # Recursively removes nils and collections that became blank through
+    # compaction, but keeps values that were already blank.
+    def deep_compact_blanked
+      deep_compact_each(true, false)
+    end
+
+    # In-place variant of #deep_compact_blanked.
+    def deep_compact_blanked!
+      replace(deep_compact_blanked)
+    end
+
+    # Recursively removes every blank value (nil, false, "", " ", [], {}). This
+    # is the recursive counterpart of Rails' Hash#compact_blank.
+    # https://github.com/rails/rails/blob/main/activesupport/lib/active_support/core_ext/hash/keys.rb
+    def deep_compact_blank
+      deep_compact_each(true, true)
+    end
+
+    # In-place variant of #deep_compact_blank, mirroring Hash#compact_blank!.
+    def deep_compact_blank!
+      replace(deep_compact_blank)
+    end
+
+    private
+
+    # Shared engine for the deep_compact family: rebuilds a hash of the same
+    # class, recursively compacting each value and discarding the keys whose
+    # value should be removed for the given combination of flags.
+    def deep_compact_each(remove_emptied_elements, remove_empty_elements)
+      each_with_object(self.class.new) do |(key, value), result|
+        keep, value = deep_compact_element(value, remove_emptied_elements, remove_empty_elements)
+        result[key] = value if keep
+      end
     end
   end
 
@@ -70,5 +106,3 @@ module DeeplyEnumerable
     end
   end
 end
-
-
