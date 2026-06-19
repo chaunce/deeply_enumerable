@@ -21,6 +21,12 @@ been replaced with four clearly-named methods, and "blank" now matches Rails'
 - **"Blank" now means `blank?`, not just empty.** The `_blank` family now also
   removes `false` and blank strings (`""`, `" "`), in addition to `nil` and empty
   collections — matching Rails' `#compact_blank`.
+- **A Hash's `default`/`default_proc` is no longer preserved through compaction.**
+  v1 mutated a `dup` (which carried the proc); v2 builds a fresh `Hash`, which has
+  none. This matches `Hash#reject` and Rails' `#compact_blank`, but can silently
+  break code relying on auto-vivification after compaction (e.g. an accumulator
+  `Hash.new { |h, k| h[k] = [] }`). Apply the default proc to the compacted
+  *result* rather than before compacting.
 
 ### Added
 
