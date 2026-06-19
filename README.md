@@ -93,6 +93,20 @@ blank strings (`""`, `" "`), matching Rails' `#compact_blank`. Blankness is
 determined by an internal equivalent of ActiveSupport's `Object#blank?`, so the
 gem still has **no ActiveSupport dependency**.
 
+⚠️ **`default`/`default_proc` is not preserved.** v2 returns a freshly-built
+`Hash`, so a default value or proc does not survive compaction (matching
+`Hash#reject` and Rails' `#compact_blank`). v1 happened to keep it because it
+mutated a `dup`. If you rely on auto-vivification, apply the default proc to the
+compacted *result* rather than before compacting:
+
+```ruby
+# Fragile — the proc is dropped by compaction:
+Hash.new { |h, k| h[k] = [] }.merge(value).deep_compact_blank
+
+# Robust — compact first, then land the data in the proc-bearing Hash:
+Hash.new { |h, k| h[k] = [] }.merge(value.deep_compact_blank)
+```
+
 ## Installation
 Add this line to your application's Gemfile:
 ```ruby

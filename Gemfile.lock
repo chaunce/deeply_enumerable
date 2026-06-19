@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    deeply_enumerable (2.0.0)
+    deeply_enumerable (2.0.1)
 
 GEM
   remote: https://rubygems.org/

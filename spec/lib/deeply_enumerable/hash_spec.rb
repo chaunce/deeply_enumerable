@@ -109,4 +109,28 @@ describe DeeplyEnumerable::Hash do
       expect(hash.deep_compact_blank!).to match(DeeplyEnumerable::Hash.deep_compact_blank(original))
     end
   end
+
+  # Documents an intentional v1 -> v2 behavior change: compaction now returns a
+  # freshly-built Hash, so a default / default_proc is NOT carried over (matching
+  # Hash#reject and Rails' #compact_blank). See the "Upgrading from v1" guide.
+  describe "default_proc preservation" do
+    it "does not preserve the receiver's default_proc through compaction" do
+      accumulator = DeeplyEnumerable::Hash.new { |hash, key| hash[key] = [] }
+      accumulator.merge!(a: 1, b: nil)
+
+      result = accumulator.deep_compact_blank
+
+      expect(result.default_proc).to be_nil
+      expect(result["missing"]).to be_nil
+    end
+
+    it "preserves auto-vivification when the compacted result is merged into a proc-bearing Hash" do
+      compacted = DeeplyEnumerable::Hash.deep_compact_blank(a: 1, b: nil)
+      result = Hash.new { |hash, key| hash[key] = [] }.merge(compacted)
+
+      expect(result).to eq(a: 1)
+      expect(result.default_proc).not_to be_nil
+      expect(result["missing"]).to eq([])
+    end
+  end
 end
